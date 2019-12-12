@@ -31,7 +31,7 @@ HEADERS  += \
     mlabel.h \
     mainwidgit.h
 
-FORMS    += mainwindow.ui \
+FORMS    += \
     mlabel.ui \
     mainwidgit.ui
 

@@ -17,9 +17,6 @@ Mlabel::~Mlabel()
 
 void Mlabel::enterEvent(QEvent *e)
 {
-//    QPixmap pixmap;
-//    pixmap.load("/image/button_style/back1.png");
-//    this->setPixmap(pixmap);
     emit this->label_signal(1);
 }
 

@@ -21,8 +21,6 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     /*设置暂停切歌按钮*/
     Mlabel *label_change=new Mlabel(this);
     label_change->setFixedSize(100,100);
-    label_change->setStyleSheet(QString("QLabel{border:5px solid #000} "));
-//    label_change->setText("测试");
     layout_widget->addWidget(label_change,0,0);
 
     /*设置暂停按钮*/
