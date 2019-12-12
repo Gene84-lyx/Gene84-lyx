@@ -24,8 +24,16 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 
 SOURCES += main.cpp\
-        mainwindow.cpp
+    mlabel.cpp \
+    mainwidgit.cpp
 
-HEADERS  += mainwindow.h
+HEADERS  += \
+    mlabel.h \
+    mainwidgit.h
 
-FORMS    += mainwindow.ui
+FORMS    += mainwindow.ui \
+    mlabel.ui \
+    mainwidgit.ui
+
+RESOURCES += \
+    picture.qrc

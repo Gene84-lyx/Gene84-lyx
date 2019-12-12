@@ -1,0 +1,25 @@
+<RCC>
+    <qresource prefix="/">
+        <file>image/music.png</file>
+        <file>image/music1.png</file>
+        <file>image/music2.png</file>
+        <file>image/mute.jpg</file>
+        <file>image/muteoff.jpg</file>
+        <file>image/timg.jpg</file>
+        <file>image/button_style/Thumbs.db</file>
+        <file>image/button_style/play1.png</file>
+        <file>image/button_style/play.png</file>
+        <file>image/button_style/pause1.png</file>
+        <file>image/button_style/pause.png</file>
+        <file>image/button_style/front1.png</file>
+        <file>image/button_style/front.png</file>
+        <file>image/button_style/exit.jpg</file>
+        <file>image/button_style/back1.png</file>
+        <file>image/button_style/back.png</file>
+        <file>image/background/Thumbs.db</file>
+        <file>image/background/20.jpg</file>
+        <file>image/background/11.jpg</file>
+        <file>image/background/7.jpg</file>
+        <file>image/background/6.jpg</file>
+    </qresource>
+</RCC>
