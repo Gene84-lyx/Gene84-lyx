@@ -12,6 +12,13 @@
 #include <string.h>
 #include <QDebug>
 #include <signal.h>
+#include <QDebug>
+#include <QList>
+#include <QAbstractButton>
+#include <QToolButton>
+#include <QPushButton>
+#include <string.h>
+#include <QByteArray>
 
 Mainwidgit::Mainwidgit(QWidget *parent) :
     QWidget(parent),
@@ -28,11 +35,12 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     this->layout_change=new QGridLayout();//底部区域的布局（播放、上一曲、下一曲）
 //    this->layout_list=new QGridLayout();//歌曲列表框的布局
 
+/***********************************************************************************/
     /*设置暂停切歌基础框*/
     this->label_change=new Mlabel(this);
     this->label_change->setFixedSize(180,70);
 //    this->label_change->setStyleSheet("QLabel{border:5px solid #000;}");
-    layout_widget->addWidget(this->label_change,1,0);
+    layout_widget->addWidget(this->label_change,2,0);
 
     /*设置（播放暂停）按钮*/
     this->label_pause=new Mlabel(this->label_change);
@@ -61,52 +69,111 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     this->label_front->setScaledContents(true);
     this->layout_change->addWidget(this->label_front,0,2);
 
-    /*歌曲列表的基本框*/
-    this->list_list=new QListWidget(this);
-    this->list_list->setMinimumSize(500,500);
-    this->list_list->setStyleSheet("background-color:white;");
+/***********************************************************************************/
+    /*设置歌曲组列表*/
+    this->toolbox_list=new QToolBox(this);
+    //多个属性用QToolBox{background-color:white;}
+    this->toolbox_list->setStyleSheet("background-color:white;");
+//    this->toolbox_list->setStyleSheet("QToolBox::tab:last {background: #FFFFFF;border-color:white;}");
 
-    this->list_list->addItem("本地列表");
+    this->layout_widget->addWidget(this->toolbox_list,0,0);
+
+    /*本地歌曲列表*/
+    this->list_bendi=new QListWidget();
+    this->list_bendi->setMinimumSize(500,500);
+    this->list_bendi->setStyleSheet("background-color:white;");
+
+    this->music_list();
+    for(int i=0;i<this->music_num;i++)
+    {
+        this->list_bendi->addItem(this->music_all_name[i]);
+    }
     this->ft.setPointSize(24);
-    this->list_list->setFont(ft);
+    this->list_bendi->setFont(ft);
 
-    this->layout_widget->addWidget(this->list_list,0,0);
+    this->toolbox_list->addItem(this->list_bendi,tr("第一行"));
 
+    /*默认歌曲列表*/
+    this->list_moren=new QListWidget();
+    this->list_moren->resize(500,500);
+    this->list_moren->setStyleSheet("background-color:white;");
 
-    /*设置组名框*/
-//    this->label_group=new Mlabel(this->label_list);
-//    this->label_group->setMaximumHeight(60);
-//    this->label_group->setText("本地列表");
-//    this->label_group->setStyleSheet("QLabel{border:1px solid #000;}");
-//    this->ft.setPointSize(24);
-//    this->label_group->setFont(ft);
-//    this->layout_list->addWidget(this->label_group,0,0);
+    this->list_moren->addItem("本地列表");
+    this->list_moren->addItem("本地列表");
+    this->ft.setPointSize(24);
+    this->list_moren->setFont(ft);
 
-    /*设置布局的属性*/
-//    this->layout_list->setSpacing(0);
-//    this->layout_list->setContentsMargins(0, 0, 0, 0);
+    this->toolbox_list->addItem(this->list_moren,tr("第二行"));
+
+    /*加一个空白的QToolboxButton,用来实现自开自关*/
+    this->list_last=new QListWidget();
+    this->list_last->setStyleSheet("background-color:white;");
+    this->list_last->setStyleSheet("border:0px solid white;");
+
+    this->toolbox_list->addItem(this->list_last,tr(""));
+    this->toolbox_list->setItemEnabled(2,false);//禁止点击使用
+
+    /*获取toolbox下Qtoolboxbutton的指针,并存放在Qlist类toolbox_button中*/
+    this->toolbox_button=this->toolbox_list->findChildren<QAbstractButton*>();
+    this->toolbox_button.at(2)->setStyleSheet("background:transparent;");
+
+    /*设置初始为2toolbutton*/
+    this->toolbox_list->setCurrentIndex(2);
 
     /*启用栅格布局*/
     this->setLayout(layout_widget);
     this->label_change->setLayout(this->layout_change);
-//    this->label_list->setLayout(this->layout_list);
+
 
 /*************************************************************************/
     connect(this->label_pause,SIGNAL(label_signal(int)),this,SLOT(label_func(int)));
     connect(this->label_back,SIGNAL(label_signal(int)),this,SLOT(label_func(int)));
     connect(this->label_front,SIGNAL(label_signal(int)),this,SLOT(label_func(int)));
+
+    connect(this->toolbox_button.at(0),SIGNAL(clicked()),this,SLOT(close_list()));
+    connect(this->toolbox_button.at(1),SIGNAL(clicked()),this,SLOT(close_list()));
 }
 
 Mainwidgit::~Mainwidgit()
 {
     delete ui;
 }
-
+/******************************事件函数**********************************/
 void Mainwidgit::closeEvent(QCloseEvent *e)
 {
     kill(this->kill_pid,2);
 }
 
+/******************************普通函数**********************************/
+void Mainwidgit::music_list()
+{
+    DIR *dir=opendir("/home/lyx/Qt5.8.0/1_object/1_program/Mplayer/song");
+    QString save_all_name;
+    QStringList cut_name;
+    struct dirent *dire;
+    this->music_num=0;
+    while(1)
+    {
+        dire=readdir(dir);
+        if(dire==NULL)
+        {
+            break;
+        }else if(dire->d_type==DT_REG)
+        {
+            save_all_name=QString::fromLocal8Bit(dire->d_name);;
+            cut_name=save_all_name.split(".");
+            if(cut_name[1]=="mp3")
+            {
+                this->music_num++;
+                this->music_all_name.append(cut_name[0]);
+            }
+        }
+    }
+    putchar(10);
+    closedir(dir);
+}
+
+/******************************槽函数**********************************/
 void Mainwidgit::label_func(int mod)
 {
     Mlabel *label=qobject_cast<Mlabel*>(sender());
@@ -215,6 +282,22 @@ void Mainwidgit::label_func(int mod)
             this->pixmap.load(":/image/button_style/front.png");
             this->label_front->setPixmap(pixmap);
             break;
+        }
+    }
+}
+
+void Mainwidgit::close_list()
+{
+    static int n=0;
+    if(this->toolbox_list->currentIndex()!=2)
+    {
+        if(n==0)
+        {
+            this->toolbox_list->setCurrentIndex(2);
+            n=2;
+        }else if(n==2)
+        {
+            n=0;
         }
     }
 }

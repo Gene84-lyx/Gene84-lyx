@@ -7,6 +7,12 @@
 #include <QPixmap>
 #include <QGridLayout>
 #include <QListWidget>
+#include <QToolBox>
+#include <QList>
+#include <QAbstractButton>
+#include <dirent.h>
+#include <QString>
+#include <QStringList>
 
 namespace Ui {
 class Mainwidgit;
@@ -20,12 +26,17 @@ public:
     explicit Mainwidgit(QWidget *parent = 0);
     ~Mainwidgit();
 
+    /*事件函数*/
     void closeEvent(QCloseEvent *e);
+
+    /*普通函数*/
+    void music_list();
 
     pid_t kill_pid;//成员变量传参，将进程号传过来控制子进程
 
 public slots:
     void label_func(int mod);
+    void close_list();
 
 signals:
     void kill_mplayer();
@@ -45,10 +56,15 @@ private:
     Mlabel *label_back;//设置切换上一首歌按钮
     Mlabel *label_front;//设置切换下一首歌按钮
 
-//    Mlabel *label_list;//设置歌曲列表栏的基本框
-    QListWidget *list_list;//设置歌曲列表的基本框
-    Mlabel *label_group;//歌曲的组名
-    QListWidget *list_name;//存放歌曲的名字
+    QToolBox *toolbox_list;//设置
+    QList<QAbstractButton *>toolbox_button;//这个是用来存放toolbox_list下级的按钮指针
+//    int n;//用来控制(toolbox_list)按钮的自开自关
+    QListWidget *list_bendi;
+    QListWidget *list_moren;
+    QListWidget *list_last;//设为最后一个作为自关的显示
+
+    int music_num;
+    QStringList music_all_name;
 };
 
 #endif // MAINWIDGIT_H
