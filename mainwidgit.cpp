@@ -29,6 +29,7 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
 
     /*参数的初始化*/
     this->play_pause=2;//控制初始时点击播放按钮音乐的播放
+    this->music_currentrow=0;//设置当前歌曲在列表中为第一首
 
     /*设置主界面的一些属性*/
     this->setMinimumSize(1280,720);
@@ -191,14 +192,47 @@ void Mainwidgit::play_music(int row)
     write(this->fd,ba.data(),strlen(ba.data()));//向终端写入命令，操控mplayer
 }
 
-/******************************槽函数**********************************/
-void Mainwidgit::label_func(int mod)
+void Mainwidgit::label_pause_func(int mod)
 {
-    Mlabel *label=qobject_cast<Mlabel*>(sender());
     QString pic_path,pic_path1;
-
-    if(label==this->label_pause)
+    if(play_pause>0)
     {
+        pic_path=":/image/button_style/play.png";
+        pic_path1=":/image/button_style/play1.png";
+    }else
+    {
+        pic_path=":/image/button_style/pause.png";
+        pic_path1=":/image/button_style/pause1.png";
+    }
+    switch(mod)
+    {
+    case 1:
+        this->pixmap.load(pic_path);
+        break;
+    case 2:
+        this->pixmap.load(pic_path1);
+        break;
+    case 3:
+        /*使用命名管道向Mplayer的进程写入命令*/
+        mkfifo("MUSIC",0777);
+        this->fd=open("MUSIC",O_WRONLY);
+        if(play_pause==2)//控制开始的时候只播放一次，2的时候是播放第一曲
+        {
+            this->play_music(0);
+            this->music_currentrow=0;
+        }else//其他的时候由pause进行播放停止的控制
+        {
+            write(this->fd,"pause\n",strlen("pause\n"));
+        }
+        /*切换图片（播放和暂停之间切换）*/
+        if(play_pause>0)
+        {
+            play_pause=0;//0的时候是播放
+        }else
+        {
+            play_pause=1;//1的时候是暂停
+        }
+        /*切换图片的路径*/
         if(play_pause>0)
         {
             pic_path=":/image/button_style/play.png";
@@ -208,76 +242,86 @@ void Mainwidgit::label_func(int mod)
             pic_path=":/image/button_style/pause.png";
             pic_path1=":/image/button_style/pause1.png";
         }
-        switch(mod)
+        /*载入图片*/
+        this->pixmap.load(pic_path1);
+        break;
+    case 4:
+        this->pixmap.load(pic_path);
+        break;
+    }
+    this->label_pause->setPixmap(pixmap);
+}
+
+void Mainwidgit::label_back_func(int mod)
+{
+    if(mod==1)
+    {
+        this->pixmap.load(":/image/button_style/back.png");
+    }else if(mod==2||mod==3)
+    {
+        this->pixmap.load(":/image/button_style/back1.png");
+    }else if(mod==4)
+    {
+        if(this->music_currentrow==0)//上一首歌的变换规则
         {
-        case 1:
-            this->pixmap.load(pic_path);
-            this->label_pause->setPixmap(this->pixmap);
-            break;
-        case 2:
-            this->pixmap.load(pic_path1);
-            this->label_pause->setPixmap(this->pixmap);
-            break;
-        case 3:
-            /*使用命名管道向Mplayer的进程写入命令*/
-            mkfifo("MUSIC",0777);
-            this->fd=open("MUSIC",O_WRONLY);
-            if(play_pause==2)//控制开始的时候只播放一次，2的时候是播放第一曲
-            {
-                this->play_music(0);
-            }else//其他的时候由pause进行播放停止的控制
-            {
-                write(this->fd,"pause\n",strlen("pause\n"));
-            }
-            /*切换图片（播放和暂停之间切换）*/
-            if(play_pause>0)
-            {
-                play_pause=0;//0的时候是播放
-            }else
-            {
-                play_pause=1;//1的时候是暂停
-            }
-            /*切换图片的路径*/
-            if(play_pause>0)
-            {
-                pic_path=":/image/button_style/play.png";
-                pic_path1=":/image/button_style/play1.png";
-            }else
-            {
-                pic_path=":/image/button_style/pause.png";
-                pic_path1=":/image/button_style/pause1.png";
-            }
-            /*载入图片*/
-            this->pixmap.load(pic_path1);
-            this->label_pause->setPixmap(pixmap);
-            break;
-        case 4:
-            this->pixmap.load(pic_path);
-            this->label_pause->setPixmap(pixmap);
-            break;
+            this->music_currentrow=this->music_num-1;
+        }else
+        {
+            this->music_currentrow--;
         }
+        this->play_music(this->music_currentrow);//播放函数
+        this->list_bendi->setCurrentRow(this->music_currentrow);//设置列表变化
+        this->play_pause=0;//设为播放
+        this->pixmap.load(":/image/button_style/pause1.png");//在暂停播放按钮中载入合适的图片
+        this->label_pause->setPixmap(pixmap);
+
+        this->pixmap.load(":/image/button_style/back.png");
+    }
+    this->label_back->setPixmap(pixmap);
+}
+
+void Mainwidgit::label_front_func(int mod)
+{
+    if(mod==1)
+    {
+        this->pixmap.load(":/image/button_style/front.png");
+    }else if(mod==2||mod==3)
+    {
+        this->pixmap.load(":/image/button_style/front1.png");
+    }else if(mod==4)
+    {
+        if(this->music_currentrow==music_num-1)//下一首歌的变换规则
+        {
+            this->music_currentrow=0;
+        }else
+        {
+            this->music_currentrow++;
+        }
+        this->play_music(this->music_currentrow);//播放函数
+        this->list_bendi->setCurrentRow(this->music_currentrow);//设置列表变化
+        this->play_pause=0;//设为播放
+        this->pixmap.load(":/image/button_style/pause1.png");//在暂停播放按钮中载入合适的图片
+        this->label_pause->setPixmap(pixmap);
+
+        this->pixmap.load(":/image/button_style/front.png");
+    }
+    this->label_front->setPixmap(pixmap);
+}
+
+/******************************槽函数**********************************/
+void Mainwidgit::label_func(int mod)//这是
+{
+    Mlabel *label=qobject_cast<Mlabel*>(sender());
+
+    if(label==this->label_pause)
+    {
+        this->label_pause_func(mod);
     }else if(label==this->label_back)
     {
-        if(mod==1||mod==4)
-        {
-            this->pixmap.load(":/image/button_style/back.png");
-            this->label_back->setPixmap(pixmap);
-        }else if(mod==2||mod==3)
-        {
-            this->pixmap.load(":/image/button_style/back1.png");
-            this->label_back->setPixmap(pixmap);
-        }
+        this->label_back_func(mod);
     }else if(label==this->label_front)
     {
-        if(mod==1||mod==4)
-        {
-            this->pixmap.load(":/image/button_style/front.png");
-            this->label_front->setPixmap(pixmap);
-        }else if(mod==2||mod==3)
-        {
-            this->pixmap.load(":/image/button_style/front1.png");
-            this->label_front->setPixmap(pixmap);
-        }
+        this->label_front_func(mod);
     }
 }
 
@@ -306,8 +350,9 @@ void Mainwidgit::close_list()
 /*此函数控制的是《列表双击事件》播放歌曲*/
 void Mainwidgit::play_list_music()
 {
-    this->play_music(this->list_bendi->currentRow());
+    this->play_music(this->list_bendi->currentRow());//控制歌曲播放的函数
+    this->music_currentrow=this->list_bendi->currentRow();//设置当前歌曲在列表中的位置
     this->play_pause=0;//设为播放
-    this->pixmap.load(":/image/button_style/pause1.png");
+    this->pixmap.load(":/image/button_style/pause1.png");//在暂停播放按钮中载入合适的图片
     this->label_pause->setPixmap(pixmap);
 }
