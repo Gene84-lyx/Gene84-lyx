@@ -29,6 +29,7 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
 
     /*参数的初始化*/
     this->play_pause=2;//控制初始时点击播放按钮音乐的播放
+    this->music_currentrow=0;//设置当前歌曲在列表中为第一首
 
     /*设置主界面的一些属性*/
     this->setMinimumSize(1280,720);
@@ -192,7 +193,7 @@ void Mainwidgit::play_music(int row)
 }
 
 /******************************槽函数**********************************/
-void Mainwidgit::label_func(int mod)
+void Mainwidgit::label_func(int mod)//这是
 {
     Mlabel *label=qobject_cast<Mlabel*>(sender());
     QString pic_path,pic_path1;
@@ -225,6 +226,7 @@ void Mainwidgit::label_func(int mod)
             if(play_pause==2)//控制开始的时候只播放一次，2的时候是播放第一曲
             {
                 this->play_music(0);
+                this->music_currentrow=0;
             }else//其他的时候由pause进行播放停止的控制
             {
                 write(this->fd,"pause\n",strlen("pause\n"));
@@ -306,8 +308,9 @@ void Mainwidgit::close_list()
 /*此函数控制的是《列表双击事件》播放歌曲*/
 void Mainwidgit::play_list_music()
 {
-    this->play_music(this->list_bendi->currentRow());
+    this->play_music(this->list_bendi->currentRow());//控制歌曲播放的函数
+    this->music_currentrow=this->list_bendi->currentRow();//设置当前歌曲在列表中的位置
     this->play_pause=0;//设为播放
-    this->pixmap.load(":/image/button_style/pause1.png");
+    this->pixmap.load(":/image/button_style/pause1.png");//在暂停播放按钮中载入合适的图片
     this->label_pause->setPixmap(pixmap);
 }
