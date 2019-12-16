@@ -14,6 +14,7 @@
 #include <QString>
 #include <QStringList>
 #include <QLabel>
+#include <semaphore.h>
 
 namespace Ui {
 class Mainwidgit;
@@ -40,6 +41,9 @@ public:
     /*公有成员变量（因为需要类外使用，所以定义为公有的）*/
     pid_t kill_pid;//成员变量传参，将进程号传过来控制子进程
     QLabel *label_time;//用以在主函数的线程中设置时间的显示
+    sem_t *sem_write;//定义一个信号量，用来控制写的阻塞
+    QString current_time;//存储当前的时间
+    QString all_time;//存储总的时间
 
 public slots:
     void label_func(int mod);//控制播放按钮

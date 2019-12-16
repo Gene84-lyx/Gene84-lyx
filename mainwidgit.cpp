@@ -22,6 +22,8 @@
 #include <QTextCodec>
 #include <stdio.h>
 #include <stdlib.h>
+#include <semaphore.h>
+#include <sys/wait.h>
 
 Mainwidgit::Mainwidgit(QWidget *parent) :
     QWidget(parent),
@@ -32,6 +34,11 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     /*参数的初始化*/
     this->play_pause=2;//控制初始时点击播放按钮音乐的播放
     this->music_currentrow=0;//设置当前歌曲在列表中为第一首
+    this->fd=open("MUSIC",O_WRONLY);//以只读的方式打开命名管道
+
+    /*定义一个信号量，用来发送暂停信息的时候阻塞时间获取*/
+    this->sem_write=sem_open("mysem",O_RDWR|O_CREAT,0666,1);
+    sem_init(this->sem_write,0,0);
 
     /*设置主界面的一些属性*/
     this->setMinimumSize(1280,720);
@@ -43,7 +50,7 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
 /***********************************************************************************/
     /*设置暂停切歌基础框*/
     this->label_change=new Mlabel(this);
-    this->label_change->setFixedSize(300,70);
+    this->label_change->setFixedSize(400,70);
     layout_widget->addWidget(this->label_change,2,0);
 
     /*设置（播放暂停）按钮*/
@@ -75,7 +82,7 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
 
     /*添加一个此时歌曲播放时间的框*/
     this->label_time=new QLabel(this->label_change);
-    this->label_time->setFixedSize(100,50);
+    this->label_time->setFixedSize(200,50);
     this->ft.setPointSize(24);
     this->label_time->setFont(ft);
     this->layout_change->addWidget(this->label_time,0,3);
@@ -197,7 +204,6 @@ void Mainwidgit::play_music(int row)
     QString path_add_name=path+this->music_all_name[row]+postfix;//将路径和文件名相加起来
     QByteArray ba = path_add_name.toUtf8();//转换格式为ubuntu识别的UTF-8格式（中文不乱码）
     mkfifo("MUSIC",0777);//创建命名管道（即使存在也没事）
-    this->fd=open("MUSIC",O_WRONLY);//以只读的方式打开命名管道
     write(this->fd,ba.data(),strlen(ba.data()));//向终端写入命令，操控mplayer
 }
 
@@ -224,7 +230,6 @@ void Mainwidgit::label_pause_func(int mod)
     case 3:
         /*使用命名管道向Mplayer的进程写入命令*/
         mkfifo("MUSIC",0777);
-        this->fd=open("MUSIC",O_WRONLY);
         if(play_pause==2)//控制开始的时候只播放一次，2的时候是播放第一曲
         {
             this->play_music(0);
@@ -237,9 +242,11 @@ void Mainwidgit::label_pause_func(int mod)
         if(play_pause>0)
         {
             play_pause=0;//0的时候是播放
+            sem_post(this->sem_write);//解锁
         }else
         {
             play_pause=1;//1的时候是暂停
+            sem_wait(this->sem_write);//上锁
         }
         /*切换图片的路径*/
         if(play_pause>0)
@@ -280,6 +287,10 @@ void Mainwidgit::label_back_func(int mod)
         }
         this->play_music(this->music_currentrow);//播放函数
         this->list_bendi->setCurrentRow(this->music_currentrow);//设置列表变化
+        if(play_pause>0)//控制阻塞（暂停的时候切歌会导致暂停重开），暂停功能的延伸补充
+        {
+            sem_post(this->sem_write);//解锁
+        }
         this->play_pause=0;//设为播放
         this->pixmap.load(":/image/button_style/pause1.png");//在暂停播放按钮中载入合适的图片
         this->label_pause->setPixmap(pixmap);
@@ -308,6 +319,10 @@ void Mainwidgit::label_front_func(int mod)
         }
         this->play_music(this->music_currentrow);//播放函数
         this->list_bendi->setCurrentRow(this->music_currentrow);//设置列表变化
+        if(play_pause>0)//控制阻塞（暂停的时候切歌会导致暂停重开），暂停功能的延伸补充
+        {
+            sem_post(this->sem_write);//解锁
+        }
         this->play_pause=0;//设为播放
         this->pixmap.load(":/image/button_style/pause1.png");//在暂停播放按钮中载入合适的图片
         this->label_pause->setPixmap(pixmap);

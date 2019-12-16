@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <QTextCodec>
 #include <semaphore.h>
+#include <sys/wait.h>
 #include <string.h>
 #include <QString>
 #include <QStringList>
@@ -21,7 +22,7 @@ struct mv_fd{
 
 void* write_order(void *arg);
 void* read_order_return(void *arg);
-QString time_format(QString time);
+QString time_format(char *buf);
 
 int main(int argc, char *argv[])
 {
@@ -66,7 +67,6 @@ int main(int argc, char *argv[])
 
         return a.exec();
     }
-
 }
 
 void* write_order(void *arg)
@@ -77,7 +77,10 @@ void* write_order(void *arg)
 
     while(1)
     {
+        sem_wait(((struct mv_fd*)arg)->w_copy->sem_write);
         write(fd_music,"get_time_pos\n",strlen("get_time_pos\n"));
+        write(fd_music,"get_time_length\n",strlen("get_time_length\n"));
+        sem_post(((struct mv_fd*)arg)->w_copy->sem_write); 
         usleep(100000);
     }
     close(fd_music);
@@ -85,54 +88,60 @@ void* write_order(void *arg)
 
 void* read_order_return(void *arg)
 {
-    ((struct mv_fd*)arg)->w_copy->label_time->setText("00:00");
+    ((struct mv_fd*)arg)->w_copy->label_time->setText("00:00/00:00");
+    ((struct mv_fd*)arg)->w_copy->current_time="00:00";
+    ((struct mv_fd*)arg)->w_copy->all_time="00:00";
     while(1)
     {
         char buf[128]={0};
         read(((struct mv_fd*)arg)->fd_copy,buf,sizeof(buf));
         if(strncmp(buf,"ANS_TIME_POSITION",strlen("ANS_TIME_POSITION"))==0)
         {
-            QString flag_time=QString::fromLocal8Bit(buf);
-            QStringList s_ms=flag_time.split("=");
-            QStringList only_s=s_ms[1].split(".");
-            only_s[0]=time_format(only_s[0]);
-            ((struct mv_fd*)arg)->w_copy->label_time->setText(only_s[0]);
+            ((struct mv_fd*)arg)->w_copy->current_time=time_format(buf);
+        }
+        if(strncmp(buf,"ANS_LENGTH",strlen("ANS_LENGTH"))==0)
+        {
+            ((struct mv_fd*)arg)->w_copy->all_time=time_format(buf);
+            ((struct mv_fd*)arg)->w_copy->label_time->setText(((struct mv_fd*)arg)->w_copy->current_time+"/"+((struct mv_fd*)arg)->w_copy->all_time);
         }
     }
 }
 
-QString time_format(QString time)
+QString time_format(char* buf)
 {
-    int timenum=time.toInt();
-    int minnum=timenum/60;
-    int secnum=timenum%60;
-    QString minstr=QString::number(minnum);
-    QString secstr=QString::number(secnum);
+    QString flag_time=QString::fromLocal8Bit(buf);//将读取到的数组转成QString中
+    QStringList s_ms=flag_time.split("=");//切割，将等号前面的内容舍弃
+    QStringList only_s=s_ms[1].split(".");//切割，将百毫秒舍弃
+    int timenum=only_s[0].toInt();//字符串秒转换成数字秒
+    int minnum=timenum/60;//取分钟数
+    int secnum=timenum%60;//取秒钟数
+    QString minstr=QString::number(minnum);//将分钟转成QString类型
+    QString secstr=QString::number(secnum);//将秒钟转成QString类型
 
-    if(timenum<10)
+    if(timenum<10)//此时的时间小于10秒的情况
     {
-        time="00:0"+time;
-    }else if(timenum<60)
+        only_s[0]="00:0"+only_s[0];
+    }else if(timenum<60)//此时的时间大于10秒小于60秒的情况
     {
-        time="00:"+time;
-    }else if(minnum<10)
+        only_s[0]="00:"+only_s[0];
+    }else if(minnum<10)//此时时间大于60秒的情况
     {
         if(secnum<10)
         {
-            time="0"+minstr+":0"+secstr;
+            only_s[0]="0"+minstr+":0"+secstr;
         }else
         {
-            time="0"+minstr+":"+secstr;
+            only_s[0]="0"+minstr+":"+secstr;
         }
     }else if(minnum>=10)
     {
         if(secnum<10)
         {
-            time=minstr+":0"+secstr;
+            only_s[0]=minstr+":0"+secstr;
         }else
         {
-            time=minstr+":"+secstr;
+            only_s[0]=minstr+":"+secstr;
         }
     }
-    return time;
+    return only_s[0];
 }
