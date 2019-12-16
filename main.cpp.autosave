@@ -68,6 +68,10 @@ int main(int argc, char *argv[])
     }
 
 }
+void write_fifo_order()
+{
+    
+}
 
 void* write_order(void *arg)
 {

@@ -13,6 +13,7 @@
 #include <dirent.h>
 #include <QString>
 #include <QStringList>
+#include <QLabel>
 
 namespace Ui {
 class Mainwidgit;
@@ -36,8 +37,9 @@ public:
     void label_back_func(int mod);//控制上一首的按钮
     void label_front_func(int mod);//控制下一首的按钮
 
-    /*公有成员变量*/
-    pid_t kill_pid;//成员变量传参，将进程号传过来控制子进程（因为需要类外使用，所以定义为公有的）
+    /*公有成员变量（因为需要类外使用，所以定义为公有的）*/
+    pid_t kill_pid;//成员变量传参，将进程号传过来控制子进程
+    QLabel *label_time;//用以在主函数的线程中设置时间的显示
 
 public slots:
     void label_func(int mod);//控制播放按钮
