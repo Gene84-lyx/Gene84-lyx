@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <semaphore.h>
 #include <sys/wait.h>
+#include <QSlider>
 
 Mainwidgit::Mainwidgit(QWidget *parent) :
     QWidget(parent),
@@ -35,6 +36,8 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     this->play_pause=2;//控制初始时点击播放按钮音乐的播放
     this->music_currentrow=0;//设置当前歌曲在列表中为第一首
     this->fd=open("MUSIC",O_WRONLY);//以只读的方式打开命名管道
+    this->current_time_int=0;
+    this->all_time_int=0;
 
     /*定义一个信号量，用来发送暂停信息的时候阻塞时间获取*/
     this->sem_write=sem_open("mysem",O_RDWR|O_CREAT,0666,1);
@@ -46,17 +49,28 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     /*设置栅格布局区*/
     this->layout_widget=new QGridLayout();//整个界面的布局
     this->layout_change=new QGridLayout();//底部区域的布局（播放、上一曲、下一曲）
+    this->layout_progress=new QGridLayout();//进度条时间的基本框的布局
+    this->layout_botton_line=new QGridLayout();//底行基本框的布局
+
+    /*设置栅格布局的属性*/
+//    this->layout_botton_line->setSpacing(0);
+//    this->layout_widget->setAlignment(Qt::AlignCenter);
 
 /***********************************************************************************/
+    /*设置底边的基本框*/
+    this->label_bottom_line=new QLabel(this);
+    this->label_bottom_line->setFixedSize(820,100);
+    this->layout_widget->addWidget(this->label_bottom_line,1,0);
+
     /*设置暂停切歌基础框*/
-    this->label_change=new Mlabel(this);
-    this->label_change->setFixedSize(400,70);
-    layout_widget->addWidget(this->label_change,2,0);
+    this->label_change=new Mlabel(this->label_bottom_line);
+    this->label_change->setFixedSize(240,100);
+    this->layout_botton_line->addWidget(this->label_change,0,0);
 
     /*设置（播放暂停）按钮*/
     this->label_pause=new Mlabel(this->label_change);
-    this->label_pause->setFixedSize(50,50);
-    this->label_pause->setStyleSheet("border-radius:25px");//圆形的命令（冒号后面的是半径）
+    this->label_pause->setFixedSize(60,60);
+    this->label_pause->setStyleSheet("border-radius:30px");//圆形的命令（冒号后面的是半径）
     pixmap.load(":/image/button_style/play1.png");//载入初始图片
     this->label_pause->setPixmap(pixmap);
     this->label_pause->setScaledContents(true);//图片自适应大小
@@ -80,12 +94,25 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     this->label_front->setScaledContents(true);
     this->layout_change->addWidget(this->label_front,0,2);
 
+    /*时间和进度条的基本框*/
+    this->label_progress=new QLabel(this->label_bottom_line);
+    this->label_progress->setFixedSize(550,100);
+    this->layout_botton_line->addWidget(this->label_progress,0,1);
+
     /*添加一个此时歌曲播放时间的框*/
-    this->label_time=new QLabel(this->label_change);
-    this->label_time->setFixedSize(200,50);
-    this->ft.setPointSize(24);
+    this->label_time=new QLabel(this->label_progress);
+    this->label_time->setFixedSize(120,50);
+    this->ft.setPointSize(14);
     this->label_time->setFont(ft);
-    this->layout_change->addWidget(this->label_time,0,3);
+    this->layout_progress->addWidget(this->label_time,0,1);
+
+    /*添加进度条*/
+    this->slider_music=new QSlider(this->label_progress);
+    this->slider_music->setFixedSize(400,50);
+    this->slider_music->setOrientation(Qt::Horizontal);
+    this->slider_music->setStyleSheet("background-color:transparent;");
+
+    this->layout_progress->addWidget(this->slider_music,0,0);
 
 /***********************************************************************************/
     /*设置歌曲组列表*/
@@ -141,8 +168,10 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     this->toolbox_list->setCurrentIndex(2);//只需要功能不需要显示的
 
     /*启用栅格布局*/
-    this->setLayout(layout_widget);
+    this->setLayout(this->layout_widget);
     this->label_change->setLayout(this->layout_change);
+    this->label_progress->setLayout(this->layout_progress);
+    this->label_bottom_line->setLayout(this->layout_botton_line);
 
 /*************************************************************************/
     /*控制的是播放按钮和切歌按钮*/
@@ -234,6 +263,7 @@ void Mainwidgit::label_pause_func(int mod)
         {
             this->play_music(0);
             this->music_currentrow=0;
+            this->set_current_list(0);//设置当前打开的toolboxbutton
         }else//其他的时候由pause进行播放停止的控制
         {
             write(this->fd,"pause\n",strlen("pause\n"));
@@ -287,13 +317,8 @@ void Mainwidgit::label_back_func(int mod)
         }
         this->play_music(this->music_currentrow);//播放函数
         this->list_bendi->setCurrentRow(this->music_currentrow);//设置列表变化
-        if(play_pause>0)//控制阻塞（暂停的时候切歌会导致暂停重开），暂停功能的延伸补充
-        {
-            sem_post(this->sem_write);//解锁
-        }
-        this->play_pause=0;//设为播放
-        this->pixmap.load(":/image/button_style/pause1.png");//在暂停播放按钮中载入合适的图片
-        this->label_pause->setPixmap(pixmap);
+        this->set_current_list(0);//设置当前打开的toolboxbutton
+        this->change_music();//双击，下一曲，上一曲播放会被打开，需要调整锁和图片
 
         this->pixmap.load(":/image/button_style/back.png");
     }
@@ -319,13 +344,8 @@ void Mainwidgit::label_front_func(int mod)
         }
         this->play_music(this->music_currentrow);//播放函数
         this->list_bendi->setCurrentRow(this->music_currentrow);//设置列表变化
-        if(play_pause>0)//控制阻塞（暂停的时候切歌会导致暂停重开），暂停功能的延伸补充
-        {
-            sem_post(this->sem_write);//解锁
-        }
-        this->play_pause=0;//设为播放
-        this->pixmap.load(":/image/button_style/pause1.png");//在暂停播放按钮中载入合适的图片
-        this->label_pause->setPixmap(pixmap);
+        this->set_current_list(0);//设置当前打开的toolboxbutton
+        this->change_music();//双击，下一曲，上一曲播放会被打开，需要调整锁和图片
 
         this->pixmap.load(":/image/button_style/front.png");
     }
@@ -352,8 +372,6 @@ void Mainwidgit::label_func(int mod)//这是
 /*这个函数是控制QToolBox控件的子控件(QToolBoxButton)点击事件（可以实现自开自关）*/
 void Mainwidgit::close_list()
 {
-    static int toolbox_list_num=this->toolbox_list->currentIndex();//在子控件的点击事件中currentIndex返回的是点击的空间的当前行数
-    static int toolbox_list_mod=0;//控制切换（开还是关）
     if(this->toolbox_list->currentIndex()==toolbox_list_num)//只有当当前点击的和之前点击的相同时才会切换
     {
         if(toolbox_list_mod==0)//这是子控件本来就关闭的情况
@@ -371,12 +389,28 @@ void Mainwidgit::close_list()
     }
 }
 
+void Mainwidgit::set_current_list(int row)
+{
+    this->toolbox_list->setCurrentIndex(row);//设置转到当前toolboxbutton中
+    toolbox_list_mod=1;//表示已经打开了
+    toolbox_list_num=row;//存储当前改变的行数
+}
+
+void Mainwidgit::change_music()
+{
+    if(play_pause>0)//控制阻塞（暂停的时候切歌会导致暂停重开），暂停功能的延伸补充
+    {
+        sem_post(this->sem_write);//解锁
+    }
+    this->play_pause=0;//设为播放
+    this->pixmap.load(":/image/button_style/pause1.png");//在暂停播放按钮中载入合适的图片
+    this->label_pause->setPixmap(pixmap);
+}
+
 /*此函数控制的是《列表双击事件》播放歌曲*/
 void Mainwidgit::play_list_music()
 {
     this->play_music(this->list_bendi->currentRow());//控制歌曲播放的函数
-    this->music_currentrow=this->list_bendi->currentRow();//设置当前歌曲在列表中的位置
-    this->play_pause=0;//设为播放
-    this->pixmap.load(":/image/button_style/pause1.png");//在暂停播放按钮中载入合适的图片
-    this->label_pause->setPixmap(pixmap);
+    this->music_currentrow=this->list_bendi->currentRow();//获得当前歌曲在列表中的位置
+    this->change_music();//双击，下一曲，上一曲播放会被打开，需要调整锁和图片
 }
