@@ -14,6 +14,7 @@
 #include <QString>
 #include <QStringList>
 #include <pthread.h>
+#include <QDebug>
 
 struct mv_fd{
     Mainwidgit *w_copy;
@@ -79,10 +80,13 @@ void* write_order(void *arg)
     {
         sem_wait(((struct mv_fd*)arg)->w_copy->sem_write);
         write(fd_music,"get_time_pos\n",strlen("get_time_pos\n"));
-        write(fd_music,"get_time_length\n",strlen("get_time_length\n"));
-        write(fd_music,"get_percent_pos\n",strlen("get_percent_pos\n"));
-        sem_post(((struct mv_fd*)arg)->w_copy->sem_write); 
         usleep(100000);
+        write(fd_music,"get_time_length\n",strlen("get_time_length\n"));
+        usleep(100000);
+        write(fd_music,"get_percent_pos\n",strlen("get_percent_pos\n"));
+        usleep(100000);
+        sem_post(((struct mv_fd*)arg)->w_copy->sem_write); 
+        usleep(200000);
     }
     close(fd_music);
 }
@@ -106,11 +110,15 @@ void* read_order_return(void *arg)
         {
             int time_all=0;
             all_time=time_format(buf,&time_all);//这个函数是将时间转换成00：00格式
-            if(time_all!=0)
+            if(time_all!=0&&((struct mv_fd*)arg)->w_copy->all_time_int!=time_all)
             {
+                ((struct mv_fd*)arg)->w_copy->slider_music->setMaximum((int)(time_all/100));
                 ((struct mv_fd*)arg)->w_copy->all_time_int=time_all;//将当前时间赋值给all_time_int
             }
-            ((struct mv_fd*)arg)->w_copy->label_time->setText(current_time+"/"+all_time);//这个是先将两个时间拼接起来，之后再输出到qt界面上
+            if(((struct mv_fd*)arg)->w_copy->flag_press_slider==0)
+            {
+                ((struct mv_fd*)arg)->w_copy->label_time->setText(current_time+"/"+all_time);//这个是先将两个时间拼接起来，之后再输出到qt界面上
+            }
         }
         if(strncmp(buf,"ANS_PERCENT_POSITION",strlen("ANS_PERCENT_POSITION"))==0)
         {
@@ -118,7 +126,8 @@ void* read_order_return(void *arg)
             QStringList percent=flag_percent.split("=");
             if(((struct mv_fd*)arg)->w_copy->flag_press_slider==0)
             {
-                ((struct mv_fd*)arg)->w_copy->slider_music->setValue(percent[1].toInt()*10);//设置进度条
+                int simple=((struct mv_fd*)arg)->w_copy->all_time_int;
+                ((struct mv_fd*)arg)->w_copy->slider_music->setValue((int)(percent[1].toInt()*(simple)/10000));//设置进度条
             }
         }
     }

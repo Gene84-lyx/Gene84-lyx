@@ -37,7 +37,7 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     this->music_currentrow=0;//设置当前歌曲在列表中为第一首
     this->fd=open("MUSIC",O_WRONLY);//以只读的方式打开命名管道
     this->current_time_int=0;
-    this->all_time_int=0;
+    this->all_time_int=240;
     this->flag_press_slider=0;//用来控制只有在鼠标点击之后才能够使用槽函数中的内容
     this->flag_release_slider=0;
 
@@ -193,7 +193,7 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     /*控制QSlider(Horizontal)的变化*/
     connect(this->slider_music,SIGNAL(sliderPressed()),this,SLOT(press_slider()));
     connect(this->slider_music,SIGNAL(sliderReleased()),this,SLOT(release_slider()));
-//    connect(this->slider_music,SIGNAL(valueChanged(int)),this,SLOT(jump_music(int)));
+    connect(this->slider_music,SIGNAL(valueChanged(int)),this,SLOT(jump_music(int)));
 }
 
 Mainwidgit::~Mainwidgit()
@@ -270,8 +270,7 @@ void Mainwidgit::label_pause_func(int mod)
         mkfifo("MUSIC",0777);
         if(play_pause==2)//控制开始的时候只播放一次，2的时候是播放第一曲
         {
-            this->play_music(0);
-            this->music_currentrow=0;
+            this->play_music(this->music_currentrow);
             this->set_current_list(0);//设置当前打开的toolboxbutton
         }else//其他的时候由pause进行播放停止的控制
         {
@@ -427,7 +426,6 @@ void Mainwidgit::play_list_music()
 void Mainwidgit::press_slider()
 {
     this->flag_press_slider=1;//用来控制只有在鼠标点击之后才能够使用槽函数中的内容
-    this->old_percent=this->slider_music->value();
 }
 
 void Mainwidgit::release_slider()
@@ -435,11 +433,12 @@ void Mainwidgit::release_slider()
     if(this->flag_press_slider==1)
     {
         int current_percent=this->slider_music->value();
-        int jump_time=((current_percent-this->old_percent)*(this->all_time_int))/100000;
+        int jump_time=current_percent-(int)(this->current_time_int/100);
         QString change_time=QString::number(jump_time);
         QString seek_add_time="seek "+change_time+"\n";
         QByteArray seek_time = seek_add_time.toUtf8();//转换格式为ubuntu识别的UTF-8格式（中文不乱码）
         write(this->fd,seek_time.data(),strlen(seek_time.data()));
+        usleep(500000);
         this->flag_press_slider=0;
         this->change_music();
     }
@@ -447,22 +446,14 @@ void Mainwidgit::release_slider()
 
 void Mainwidgit::jump_music(int value)
 {
-    if(this->flag_press_slider==1&&this->flag_release_slider==1)
+    if(this->flag_press_slider==1)
     {
-        int jump_time=((this->all_time_int*value)/100-this->current_time_int)/100;
-        QString change_time=QString::number(jump_time);
-        QString seek_add_time;
-        if(jump_time<0)
-        {
-            seek_add_time="seek -"+change_time+"\n";
-        }else
-        {
-            seek_add_time="seek "+change_time+"\n";
-        }
-        QByteArray seek_time = seek_add_time.toUtf8();//转换格式为ubuntu识别的UTF-8格式（中文不乱码）
-
-        write(this->fd,seek_time.data(),strlen(seek_time.data()));
-        this->flag_press_slider=0;
-        this->flag_release_slider=0;
+        int sec_all=(int)(this->all_time_int/100)%60;
+        int min_all=(int)(this->all_time_int/100)/60;
+        QString atime=QString("%1:%2").arg(min_all, 2, 10, QChar('0')).arg(sec_all, 2, 10, QChar('0'));
+        int sec_cur=(int)(value)%60;
+        int min_cur=(int)(value)/60;
+        QString ctime=QString("%1:%2").arg(min_cur, 2, 10, QChar('0')).arg(sec_cur, 2, 10, QChar('0'));
+        this->label_time->setText(ctime+"/"+atime);
     }
 }
