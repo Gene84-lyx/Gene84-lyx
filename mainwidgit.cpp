@@ -38,6 +38,8 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     this->fd=open("MUSIC",O_WRONLY);//以只读的方式打开命名管道
     this->current_time_int=0;
     this->all_time_int=0;
+    this->flag_press_slider=0;//用来控制只有在鼠标点击之后才能够使用槽函数中的内容
+    this->flag_release_slider=0;
 
     /*定义一个信号量，用来发送暂停信息的时候阻塞时间获取*/
     this->sem_write=sem_open("mysem",O_RDWR|O_CREAT,0666,1);
@@ -111,6 +113,8 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     this->slider_music->setFixedSize(400,50);
     this->slider_music->setOrientation(Qt::Horizontal);
     this->slider_music->setStyleSheet("background-color:transparent;");
+    this->slider_music->setMinimum(0);
+    this->slider_music->setMaximum(1000);
 
     this->layout_progress->addWidget(this->slider_music,0,0);
 
@@ -185,6 +189,11 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
 
     /*控制listwidget获得歌曲信息，从而播放歌曲*/
     connect(this->list_bendi,SIGNAL(doubleClicked(QModelIndex)),this,SLOT(play_list_music()));
+
+    /*控制QSlider(Horizontal)的变化*/
+    connect(this->slider_music,SIGNAL(sliderPressed()),this,SLOT(press_slider()));
+    connect(this->slider_music,SIGNAL(sliderReleased()),this,SLOT(release_slider()));
+//    connect(this->slider_music,SIGNAL(valueChanged(int)),this,SLOT(jump_music(int)));
 }
 
 Mainwidgit::~Mainwidgit()
@@ -413,4 +422,47 @@ void Mainwidgit::play_list_music()
     this->play_music(this->list_bendi->currentRow());//控制歌曲播放的函数
     this->music_currentrow=this->list_bendi->currentRow();//获得当前歌曲在列表中的位置
     this->change_music();//双击，下一曲，上一曲播放会被打开，需要调整锁和图片
+}
+
+void Mainwidgit::press_slider()
+{
+    this->flag_press_slider=1;//用来控制只有在鼠标点击之后才能够使用槽函数中的内容
+    this->old_percent=this->slider_music->value();
+}
+
+void Mainwidgit::release_slider()
+{
+    if(this->flag_press_slider==1)
+    {
+        int current_percent=this->slider_music->value();
+        int jump_time=((current_percent-this->old_percent)*(this->all_time_int))/100000;
+        QString change_time=QString::number(jump_time);
+        QString seek_add_time="seek "+change_time+"\n";
+        QByteArray seek_time = seek_add_time.toUtf8();//转换格式为ubuntu识别的UTF-8格式（中文不乱码）
+        write(this->fd,seek_time.data(),strlen(seek_time.data()));
+        this->flag_press_slider=0;
+        this->change_music();
+    }
+}
+
+void Mainwidgit::jump_music(int value)
+{
+    if(this->flag_press_slider==1&&this->flag_release_slider==1)
+    {
+        int jump_time=((this->all_time_int*value)/100-this->current_time_int)/100;
+        QString change_time=QString::number(jump_time);
+        QString seek_add_time;
+        if(jump_time<0)
+        {
+            seek_add_time="seek -"+change_time+"\n";
+        }else
+        {
+            seek_add_time="seek "+change_time+"\n";
+        }
+        QByteArray seek_time = seek_add_time.toUtf8();//转换格式为ubuntu识别的UTF-8格式（中文不乱码）
+
+        write(this->fd,seek_time.data(),strlen(seek_time.data()));
+        this->flag_press_slider=0;
+        this->flag_release_slider=0;
+    }
 }

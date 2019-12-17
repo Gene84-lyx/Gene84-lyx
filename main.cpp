@@ -106,14 +106,20 @@ void* read_order_return(void *arg)
         {
             int time_all=0;
             all_time=time_format(buf,&time_all);//这个函数是将时间转换成00：00格式
-            ((struct mv_fd*)arg)->w_copy->all_time_int=time_all;//将当前时间赋值给all_time_int
+            if(time_all!=0)
+            {
+                ((struct mv_fd*)arg)->w_copy->all_time_int=time_all;//将当前时间赋值给all_time_int
+            }
             ((struct mv_fd*)arg)->w_copy->label_time->setText(current_time+"/"+all_time);//这个是先将两个时间拼接起来，之后再输出到qt界面上
         }
         if(strncmp(buf,"ANS_PERCENT_POSITION",strlen("ANS_PERCENT_POSITION"))==0)
         {
             QString flag_percent=QString::fromLocal8Bit(buf);
             QStringList percent=flag_percent.split("=");
-            ((struct mv_fd*)arg)->w_copy->slider_music->setValue(percent[1].toInt());
+            if(((struct mv_fd*)arg)->w_copy->flag_press_slider==0)
+            {
+                ((struct mv_fd*)arg)->w_copy->slider_music->setValue(percent[1].toInt()*10);//设置进度条
+            }
         }
     }
 }

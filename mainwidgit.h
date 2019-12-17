@@ -46,6 +46,9 @@ public:
     int current_time_int;//存储当前的时间
     int all_time_int;//存储总的时间
     QSlider *slider_music;//定义一个进度条控件
+    int flag_press_slider;//用来控制只有在鼠标点击之后才能够使用槽函数中的内容
+    int flag_release_slider;
+    int old_percent;//保存改变之前的进度条进度
 
 public slots:
     void label_func(int mod);//控制播放按钮
@@ -53,6 +56,9 @@ public slots:
     void set_current_list(int row);//设置当前的toolboxbutton是哪个
     void change_music();//双击，下一曲，上一曲播放会被打开，需要调整锁和图片
     void play_list_music();//播放列表中的歌曲
+    void press_slider();//按压slider信号
+    void release_slider();//释放slider信号
+    void jump_music(int value);//跳转到多少秒后或跳转到多少秒前
 
 signals:
     void kill_mplayer();
