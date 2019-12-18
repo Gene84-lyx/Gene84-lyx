@@ -25,6 +25,9 @@
 #include <semaphore.h>
 #include <sys/wait.h>
 #include <QSlider>
+#include <QListWidgetItem>
+#include <QScrollBar>
+#include <QAbstractItemView>
 
 Mainwidgit::Mainwidgit(QWidget *parent) :
     QWidget(parent),
@@ -40,6 +43,8 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     this->all_time_int=240;
     this->flag_press_slider=0;//用来控制只有在鼠标点击之后才能够使用槽函数中的内容
     this->flag_release_slider=0;
+    this->judge_time=NULL;
+    this->row_lrc=0;
 
     /*定义一个信号量，用来发送暂停信息的时候阻塞时间获取*/
     this->sem_write=sem_open("mysem",O_RDWR|O_CREAT,0666,1);
@@ -61,8 +66,8 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
 /***********************************************************************************/
     /*设置底边的基本框*/
     this->label_bottom_line=new QLabel(this);
-    this->label_bottom_line->setFixedSize(820,100);
-    this->layout_widget->addWidget(this->label_bottom_line,1,0);
+    this->label_bottom_line->setFixedSize(1020,100);
+    this->layout_widget->addWidget(this->label_bottom_line,1,0,1,3,Qt::AlignLeft | Qt::AlignVCenter);
 
     /*设置暂停切歌基础框*/
     this->label_change=new Mlabel(this->label_bottom_line);
@@ -98,7 +103,7 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
 
     /*时间和进度条的基本框*/
     this->label_progress=new QLabel(this->label_bottom_line);
-    this->label_progress->setFixedSize(550,100);
+    this->label_progress->setFixedSize(750,100);
     this->layout_botton_line->addWidget(this->label_progress,0,1);
 
     /*添加一个此时歌曲播放时间的框*/
@@ -110,7 +115,7 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
 
     /*添加进度条*/
     this->slider_music=new QSlider(this->label_progress);
-    this->slider_music->setFixedSize(400,50);
+    this->slider_music->setFixedSize(600,50);
     this->slider_music->setOrientation(Qt::Horizontal);
     this->slider_music->setStyleSheet("background-color:transparent;");
     this->slider_music->setMinimum(0);
@@ -122,9 +127,11 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
     /*设置歌曲组列表*/
     this->toolbox_list=new QToolBox(this);
     this->toolbox_list->setStyleSheet("background-color:white;");//多个属性用QToolBox{background-color:white;}
+    this->toolbox_list->setMinimumWidth(420);
+    this->toolbox_list->setMaximumWidth(500);
     this->ft.setPointSize(24);
     this->toolbox_list->setFont(ft);//只有在父控件(QToolBox)中改变字体才能改变子控件(QToolBoxButton)中的字体大小，子控件自己无法该
-    this->layout_widget->addWidget(this->toolbox_list,0,0);
+    this->layout_widget->addWidget(this->toolbox_list,0,0,1,1);
 
     /*本地歌曲列表*/
     this->list_bendi=new QListWidget();
@@ -170,6 +177,27 @@ Mainwidgit::Mainwidgit(QWidget *parent) :
 
     /*设置初始为2toolbutton*/
     this->toolbox_list->setCurrentIndex(2);//只需要功能不需要显示的
+/***********************************************************************************/
+    /*歌词列表*/
+    this->lrc_word_list=new QListWidget();
+    this->lrc_word_list->setStyleSheet("background-color:white;");
+    this->lrc_word_list->setMinimumSize(840,600);
+    this->ft.setPointSize(24);
+    this->lrc_word_list->setFont(ft);
+    this->layout_widget->addWidget(this->lrc_word_list,0,1,1,2);
+
+    this->lrc_word_list->setEnabled(false);
+
+    this->lrc_list();//将歌曲读入QStringlist中
+//    this->listwidget_button.at(7)->setBackground(QColor(0,0,0));
+//    this->listwidget_button.at(7)->setTextColor(QColor(255,255,255));
+
+//    this->lrc_word_list->scrollToItem(listwidget_button.at(7),QAbstractItemView::PositionAtCenter);//设置listwidget中的项目居中
+    this->lrc_word_list->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);//不显示垂直滚动条
+    this->lrc_word_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);//不显示横向滚动条
+
+
+/***********************************************************************************/
 
     /*启用栅格布局*/
     this->setLayout(this->layout_widget);
@@ -203,6 +231,11 @@ Mainwidgit::~Mainwidgit()
 /******************************事件函数**********************************/
 void Mainwidgit::closeEvent(QCloseEvent *e)
 {
+    if(this->judge_time!=NULL)
+    {
+        free(this->judge_time);
+        this->judge_time=NULL;
+    }
     kill(this->kill_pid,2);
 }
 
@@ -233,6 +266,137 @@ void Mainwidgit::music_list()
     }
     putchar(10);
     closedir(dir);
+}
+
+void Mainwidgit::lrc_list()
+{
+    DIR *dir=opendir("/home/lyx/Qt5.8.0/1_object/1_program/Mplayer/lyrics");
+    QString save_all_name;
+    QStringList cut_name;
+    struct dirent *dire;
+    while(1)
+    {
+        dire=readdir(dir);
+        if(dire==NULL)
+        {
+            break;
+        }else if(dire->d_type==DT_REG)
+        {
+            save_all_name=QString::fromLocal8Bit(dire->d_name);
+            cut_name=save_all_name.split(".");
+            if(cut_name[1]=="lrc")
+            {
+                this->lrc_all_name.append(cut_name[0]);
+            }
+        }
+    }
+    putchar(10);
+    closedir(dir);
+}
+
+QString Mainwidgit::find_lrc_name()
+{
+    QString lrc_name="";
+    for(int i=0;i<this->lrc_all_name.count();i++)
+    {
+        if(this->music_all_name[this->music_currentrow]==this->lrc_all_name[i])
+        {
+            lrc_name=lrc_all_name[i];
+        }
+    }
+    return lrc_name;
+}
+
+void Mainwidgit::cut_lrc()
+{
+    /*每次初始化歌词listwidget(lrc_word_list)*/
+    this->lrc_word_list->clear();
+    this->listwidget_button.clear();
+    this->row_lrc=0;
+
+    if(this->find_lrc_name()!="")//当没有找到了对应的歌词时
+    {
+        /*拼接要打开的歌曲的路径路径*/
+        QString path="/home/lyx/Qt5.8.0/1_object/1_program/Mplayer/lyrics/";//路径
+        QString postfix=".lrc";//文件类型名
+        QString path_add_name=path+this->find_lrc_name()+postfix;//将路径和文件名相加起来
+        QByteArray ba = path_add_name.toUtf8();//转换格式为ubuntu识别的UTF-8格式（中文不乱码）
+
+        /*一致的的方式打开打开歌词文件(lrc)，获得流指针*/
+        this->file_lrc=fopen(ba.data(),"r");
+
+        /*从文件中读取歌词存入QString中*/
+        char temp[128]={0};
+        QStringList oneline_lrc;//用来存放一行歌词
+        while(fgets(temp,128,this->file_lrc)!=NULL)
+        {
+            QTextCodec *codec = QTextCodec::codecForName("GBK");
+            QString temp_str=codec->toUnicode(temp);
+            oneline_lrc.append((temp_str.split("\r\n")[0]));
+        }
+
+        /*关闭文件流指针*/
+        fclose(this->file_lrc);
+
+        /*将歌词切割成时间和语句*/
+        QStringList oneline_time;
+        QStringList oneline_sentence;
+        for(int i=0;i<oneline_lrc.count();i++)
+        {
+            QStringList temp=oneline_lrc[i].split("]");
+            if(temp[1].size()!=0)
+            {
+                oneline_time.append(temp[0]);
+                oneline_sentence.append(temp[1]);
+            }
+        }
+
+        /*将时间转换成转换成十毫秒*/
+        if(judge_time!=NULL)
+        {
+            free(judge_time);
+            judge_time=NULL;
+        }
+        judge_time=(int*)malloc(oneline_time.count()*sizeof(int)+8);
+        for(int i=0;i<oneline_time.count();i++)
+        {
+            QStringList temp_time=oneline_time[i].split("[");
+            temp_time=temp_time[1].split(":");
+            int min_num=temp_time[0].toInt();
+            temp_time=temp_time[1].split(".");
+            int sec_num=temp_time[0].toInt();
+            int msec_num=temp_time[1].toInt();
+            int all_num=min_num*6000+sec_num*100+msec_num;
+            judge_time[i]=all_num;
+        }
+
+        /*切割歌词*/
+        for(int i=0;i<oneline_sentence.count()+2;i++)//前两格和后两格为空
+        {
+            if(i<2)
+            {
+                QListWidgetItem *item = new QListWidgetItem(QString(""));
+                this->listwidget_button.append(item);
+                item->setTextAlignment(Qt::AlignCenter);
+                item->setSizeHint(QSize(840,(this->lrc_word_list->height()/5)));
+                this->listwidget_button.at(0)->setBackground(QColor(0,0,0));
+                this->lrc_word_list->addItem(item);
+            }else
+            {
+                QListWidgetItem *item = new QListWidgetItem(oneline_sentence[i-2]);
+                this->listwidget_button.append(item);
+                item->setTextAlignment(Qt::AlignCenter);
+                item->setSizeHint(QSize(840,(this->lrc_word_list->height()/5)));
+                item->setTextColor(QColor(0,0,0));
+                this->lrc_word_list->addItem(item);
+            }
+        }
+
+//        this->listwidget_button.at(0)->setBackground(QColor(240,120,70));
+//        this->listwidget_button.at(0)->setTextColor(QColor(255,255,255));
+        this->lrc_word_list->scrollToItem(listwidget_button.at(2),QAbstractItemView::PositionAtCenter);//设置listwidget中的项目居中
+
+    }
 }
 
 void Mainwidgit::play_music(int row)
@@ -272,6 +436,7 @@ void Mainwidgit::label_pause_func(int mod)
         {
             this->play_music(this->music_currentrow);
             this->set_current_list(0);//设置当前打开的toolboxbutton
+            this->cut_lrc();
         }else//其他的时候由pause进行播放停止的控制
         {
             write(this->fd,"pause\n",strlen("pause\n"));
@@ -328,6 +493,8 @@ void Mainwidgit::label_back_func(int mod)
         this->set_current_list(0);//设置当前打开的toolboxbutton
         this->change_music();//双击，下一曲，上一曲播放会被打开，需要调整锁和图片
 
+        this->cut_lrc();
+
         this->pixmap.load(":/image/button_style/back.png");
     }
     this->label_back->setPixmap(pixmap);
@@ -354,6 +521,8 @@ void Mainwidgit::label_front_func(int mod)
         this->list_bendi->setCurrentRow(this->music_currentrow);//设置列表变化
         this->set_current_list(0);//设置当前打开的toolboxbutton
         this->change_music();//双击，下一曲，上一曲播放会被打开，需要调整锁和图片
+
+        this->cut_lrc();
 
         this->pixmap.load(":/image/button_style/front.png");
     }
@@ -421,6 +590,7 @@ void Mainwidgit::play_list_music()
     this->play_music(this->list_bendi->currentRow());//控制歌曲播放的函数
     this->music_currentrow=this->list_bendi->currentRow();//获得当前歌曲在列表中的位置
     this->change_music();//双击，下一曲，上一曲播放会被打开，需要调整锁和图片
+    this->cut_lrc();
 }
 
 void Mainwidgit::press_slider()
@@ -433,7 +603,13 @@ void Mainwidgit::release_slider()
     if(this->flag_press_slider==1)
     {
         int current_percent=this->slider_music->value();
-        int jump_time=current_percent-(int)(this->current_time_int/100);
+        int current_time=(int)(this->current_time_int/100);
+        int all_music_time=(int)(this->all_time_int/100);
+        int jump_time=current_percent-current_time;
+        if((current_time+jump_time)>=all_music_time)
+        {
+            jump_time=jump_time-2;
+        }
         QString change_time=QString::number(jump_time);
         QString seek_add_time="seek "+change_time+"\n";
         QByteArray seek_time = seek_add_time.toUtf8();//转换格式为ubuntu识别的UTF-8格式（中文不乱码）

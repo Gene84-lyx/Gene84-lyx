@@ -33,7 +33,10 @@ public:
     void closeEvent(QCloseEvent *e);
 
     /*普通函数*/
-    void music_list();//将文件中的所有歌曲存入列表中
+    void music_list();//将song文件中的所有歌曲存入列表中
+    void lrc_list();//将lyrics文件中所有的歌词都存入链表中
+    QString find_lrc_name();//从listwidget_button中筛选与歌曲相同的名字
+    void cut_lrc();//将歌词取出并切割
     void play_music(int row);//拼接路径、名字、文件类型，然后输入到终端播放
     void label_pause_func(int mod);//播放与暂停按钮功能实现的函数
     void label_back_func(int mod);//控制上一首的按钮
@@ -49,6 +52,11 @@ public:
     int flag_press_slider;//用来控制只有在鼠标点击之后才能够使用槽函数中的内容
     int flag_release_slider;
     int old_percent;//保存改变之前的进度条进度
+    QListWidget *lrc_word_list;//放歌词的列表
+    QList<QListWidgetItem*>listwidget_button;//存放的是lrc_word_list中的qlistwidgetitem
+    FILE *file_lrc;//存放的是打开歌词的文件标识符
+    int *judge_time;//存放int类型的时间数据
+    int row_lrc;//存放此时到了多少句
 
 public slots:
     void label_func(int mod);//控制播放按钮
@@ -96,6 +104,7 @@ private:
     int music_num;//获得总共歌曲的数量，方便输入列表
     int music_currentrow;//当前歌曲在列表中的位置，如果重新读取本地文件夹一切重置
     QStringList music_all_name;//将歌曲的名字存入链表中
+    QStringList lrc_all_name;//将歌词名字存入链表中
 };
 
 #endif // MAINWIDGIT_H

@@ -93,6 +93,8 @@ void* write_order(void *arg)
 
 void* read_order_return(void *arg)
 {
+    Mainwidgit *wc=((struct mv_fd*)arg)->w_copy;
+
     ((struct mv_fd*)arg)->w_copy->label_time->setText("00:00/00:00");
     QString current_time="00:00";
     QString all_time="00:00";
@@ -105,6 +107,15 @@ void* read_order_return(void *arg)
             int time_current=0;
             current_time=time_format(buf,&time_current);//这个函数是将时间转换成00：00格式
             ((struct mv_fd*)arg)->w_copy->current_time_int=time_current;//将当前时间赋值给current_time_int
+            if(time_current>((struct mv_fd*)arg)->w_copy->judge_time[((struct mv_fd*)arg)->w_copy->row_lrc])
+            {
+                wc->listwidget_button.at(wc->row_lrc+1)->setBackground(QColor(0,0,0));
+                wc->listwidget_button.at(wc->row_lrc+1)->setTextColor(QColor(255,255,255));
+                wc->row_lrc++;
+                wc->listwidget_button.at(wc->row_lrc+1)->setBackground(QColor(240,120,70));
+                wc->listwidget_button.at(wc->row_lrc+1)->setTextColor(QColor(255,255,255));
+                wc->lrc_word_list->scrollToItem(wc->listwidget_button.at(wc->row_lrc+1),QAbstractItemView::PositionAtCenter);
+            }
         }
         if(strncmp(buf,"ANS_LENGTH",strlen("ANS_LENGTH"))==0)//这是对比时间总的长度的标志位
         {
