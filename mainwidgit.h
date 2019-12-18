@@ -40,7 +40,7 @@ public:
     void play_music(int row);//拼接路径、名字、文件类型，然后输入到终端播放
     void label_pause_func(int mod);//播放与暂停按钮功能实现的函数
     void label_back_func(int mod);//控制上一首的按钮
-    void label_front_func(int mod);//控制下一首的按钮
+    void label_front_func(int mod, int auto_next=0);//控制下一首的按钮,默认关闭
 
     /*公有成员变量（因为需要类外使用，所以定义为公有的）*/
     pid_t kill_pid;//成员变量传参，将进程号传过来控制子进程

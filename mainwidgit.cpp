@@ -500,7 +500,7 @@ void Mainwidgit::label_back_func(int mod)
     this->label_back->setPixmap(pixmap);
 }
 
-void Mainwidgit::label_front_func(int mod)
+void Mainwidgit::label_front_func(int mod,int auto_next)
 {
     if(mod==1)
     {
@@ -523,10 +523,15 @@ void Mainwidgit::label_front_func(int mod)
         this->change_music();//双击，下一曲，上一曲播放会被打开，需要调整锁和图片
 
         this->cut_lrc();
-
-        this->pixmap.load(":/image/button_style/front.png");
+        if(auto_next==0)
+        {
+            this->pixmap.load(":/image/button_style/front.png");
+        }
     }
-    this->label_front->setPixmap(pixmap);
+    if(auto_next==0)
+    {
+        this->label_front->setPixmap(pixmap);
+    }
 }
 
 /******************************槽函数**********************************/
@@ -596,6 +601,7 @@ void Mainwidgit::play_list_music()
 void Mainwidgit::press_slider()
 {
     this->flag_press_slider=1;//用来控制只有在鼠标点击之后才能够使用槽函数中的内容
+    this->old_percent=this->slider_music->value();
 }
 
 void Mainwidgit::release_slider()
@@ -618,6 +624,10 @@ void Mainwidgit::release_slider()
         this->flag_press_slider=0;
         this->change_music();
     }
+    if(this->slider_music->value()>=((int)(this->all_time_int/100)-4)&&this->flag_press_slider!=1)
+    {
+        this->label_front_func(4,1);
+    }
 }
 
 void Mainwidgit::jump_music(int value)
@@ -631,5 +641,28 @@ void Mainwidgit::jump_music(int value)
         int min_cur=(int)(value)/60;
         QString ctime=QString("%1:%2").arg(min_cur, 2, 10, QChar('0')).arg(sec_cur, 2, 10, QChar('0'));
         this->label_time->setText(ctime+"/"+atime);
+    }
+    if(this->slider_music->value()>=((int)(this->all_time_int/100)-4)&&this->flag_press_slider!=1)
+    {
+        this->label_front_func(4,1);
+    }
+    if((value*100)>=this->judge_time[this->row_lrc]&&this->flag_press_slider==1&&value>this->old_percent)
+    {
+        this->listwidget_button.at(this->row_lrc+1)->setBackground(QColor(0,0,0));
+        this->listwidget_button.at(this->row_lrc+1)->setTextColor(QColor(255,255,255));
+        this->row_lrc++;
+        this->listwidget_button.at(this->row_lrc+1)->setBackground(QColor(240,120,70));
+        this->listwidget_button.at(this->row_lrc+1)->setTextColor(QColor(255,255,255));
+        this->lrc_word_list->scrollToItem(this->listwidget_button.at(this->row_lrc+1),QAbstractItemView::PositionAtCenter);
+        this->old_percent=value;
+    }else if((value*100)<this->judge_time[this->row_lrc]&&this->flag_press_slider==1&&value<this->old_percent)
+    {
+        this->listwidget_button.at(this->row_lrc+1)->setBackground(QColor(255,255,255));
+        this->listwidget_button.at(this->row_lrc+1)->setTextColor(QColor(0,0,0));
+        this->row_lrc--;
+        this->listwidget_button.at(this->row_lrc+1)->setBackground(QColor(240,120,70));
+        this->listwidget_button.at(this->row_lrc+1)->setTextColor(QColor(255,255,255));
+        this->lrc_word_list->scrollToItem(this->listwidget_button.at(this->row_lrc+1),QAbstractItemView::PositionAtCenter);
+        this->old_percent=value;
     }
 }

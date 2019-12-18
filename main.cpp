@@ -107,7 +107,7 @@ void* read_order_return(void *arg)
             int time_current=0;
             current_time=time_format(buf,&time_current);//这个函数是将时间转换成00：00格式
             ((struct mv_fd*)arg)->w_copy->current_time_int=time_current;//将当前时间赋值给current_time_int
-            if(time_current>((struct mv_fd*)arg)->w_copy->judge_time[((struct mv_fd*)arg)->w_copy->row_lrc])
+            if(time_current>wc->judge_time[wc->row_lrc]&&wc->flag_press_slider==0)
             {
                 wc->listwidget_button.at(wc->row_lrc+1)->setBackground(QColor(0,0,0));
                 wc->listwidget_button.at(wc->row_lrc+1)->setTextColor(QColor(255,255,255));
@@ -123,7 +123,7 @@ void* read_order_return(void *arg)
             all_time=time_format(buf,&time_all);//这个函数是将时间转换成00：00格式
             if(time_all!=0&&((struct mv_fd*)arg)->w_copy->all_time_int!=time_all)
             {
-                ((struct mv_fd*)arg)->w_copy->slider_music->setMaximum((int)(time_all/100));
+                ((struct mv_fd*)arg)->w_copy->slider_music->setMaximum((int)(time_all/100)-2);
                 ((struct mv_fd*)arg)->w_copy->all_time_int=time_all;//将当前时间赋值给all_time_int
             }
             if(((struct mv_fd*)arg)->w_copy->flag_press_slider==0)
